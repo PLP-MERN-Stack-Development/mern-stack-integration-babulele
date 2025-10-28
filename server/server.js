@@ -2,18 +2,23 @@
 
 // Import required modules
 const express = require('express');
-const mongoose = require('mongoose');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const path = require('path');
+
+// Load environment variables FIRST
+dotenv.config();
+
+// Import database connection
+const connectDB = require('./config/db');
 
 // Import routes
 const postRoutes = require('./routes/posts');
 const categoryRoutes = require('./routes/categories');
 const authRoutes = require('./routes/auth');
 
-// Load environment variables
-dotenv.config();
+// Import error handler
+const { errorHandler } = require('./middleware/errorHandler');
 
 // Initialize Express app
 const app = express();
@@ -42,31 +47,48 @@ app.use('/api/auth', authRoutes);
 
 // Root route
 app.get('/', (req, res) => {
-  res.send('MERN Blog API is running');
-});
-
-// Error handling middleware
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(err.statusCode || 500).json({
-    success: false,
-    error: err.message || 'Server Error',
+  res.json({
+    success: true,
+    message: 'MERN Blog API is running',
+    version: '1.0.0',
+    endpoints: {
+      posts: '/api/posts',
+      categories: '/api/categories',
+      auth: '/api/auth',
+    },
   });
 });
+
+// Handle 404 - routes not found
+app.use((req, res, next) => {
+  res.status(404).json({
+    success: false,
+    error: `Route ${req.originalUrl} not found`,
+  });
+});
+
+// Error handling middleware (must be last)
+app.use(errorHandler);
 
 // Connect to MongoDB and start server
-mongoose
-  .connect(process.env.MONGODB_URI)
-  .then(() => {
-    console.log('Connected to MongoDB');
+const startServer = async () => {
+  try {
+    // Connect to MongoDB
+    await connectDB();
+    
+    // Start Express server
     app.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`);
+      console.log(`🚀 Server running on port ${PORT}`);
+      console.log(`📝 Environment: ${process.env.NODE_ENV || 'development'}`);
     });
-  })
-  .catch((err) => {
-    console.error('Failed to connect to MongoDB', err);
+  } catch (error) {
+    console.error('❌ Failed to start server:', error);
     process.exit(1);
-  });
+  }
+};
+
+// Start the server
+startServer();
 
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (err) => {
