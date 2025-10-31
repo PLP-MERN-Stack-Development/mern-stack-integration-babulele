@@ -2,6 +2,7 @@
 
 const express = require('express');
 const router = express.Router();
+const multer = require('multer');
 
 // Import controllers
 const {
@@ -64,7 +65,31 @@ router.delete('/:id', protect, deletePost);
  * @desc    Upload post image
  * @access  Private
  */
-router.post('/upload', protect, upload.single('image'), uploadPostImage);
+router.post('/upload', protect, (req, res, next) => {
+  upload.single('image')(req, res, (err) => {
+    if (err) {
+      // Handle Multer errors
+      if (err instanceof multer.MulterError) {
+        if (err.code === 'LIMIT_FILE_SIZE') {
+          return res.status(400).json({
+            success: false,
+            error: 'File too large. Maximum size is 5MB.',
+          });
+        }
+        return res.status(400).json({
+          success: false,
+          error: err.message,
+        });
+      }
+      // Handle other errors
+      return res.status(400).json({
+        success: false,
+        error: err.message || 'File upload failed',
+      });
+    }
+    next();
+  });
+}, uploadPostImage);
 
 /**
  * @route   POST /api/posts/:id/comments

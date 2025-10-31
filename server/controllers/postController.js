@@ -20,9 +20,11 @@ const uploadPostImage = async (req, res, next) => {
       data: {
         filename: req.file.filename,
         path: `/uploads/${req.file.filename}`,
+        fullPath: req.file.path,
       },
     });
   } catch (error) {
+    console.error('Upload error:', error);
     next(error);
   }
 };
