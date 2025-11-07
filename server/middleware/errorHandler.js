@@ -25,8 +25,28 @@ const handleCastErrorDB = (err) => {
  * Handle duplicate field errors (like duplicate email)
  */
 const handleDuplicateFieldsDB = (err) => {
-  const value = err.errmsg.match(/(["'])(\\?.)*?\1/)[0];
-  const message = `Duplicate field value: ${value}. Please use another value!`;
+  // Handle both old and new Mongoose error formats
+  let field = 'field';
+  let value = 'value';
+  
+  if (err.keyPattern) {
+    // New Mongoose format (v6+)
+    field = Object.keys(err.keyPattern)[0];
+    value = err.keyValue ? err.keyValue[field] : 'value';
+  } else if (err.errmsg) {
+    // Old Mongoose format
+    const match = err.errmsg.match(/(["'])(\\?.)*?\1/);
+    if (match) {
+      value = match[0];
+    }
+    // Try to extract field name from index name
+    const indexMatch = err.errmsg.match(/index: (.+?)_/);
+    if (indexMatch) {
+      field = indexMatch[1];
+    }
+  }
+  
+  const message = `Duplicate ${field} value: ${value}. Please use another value!`;
   return new ApiError(message, 400);
 };
 
@@ -77,17 +97,21 @@ const sendErrorProd = (err, res) => {
 const errorHandler = (err, req, res, next) => {
   err.statusCode = err.statusCode || 500;
 
+  // Handle specific MongoDB errors first (works in both dev and prod)
+  let error = { ...err };
+  error.message = err.message;
+
+  if (err.name === 'CastError') {
+    error = handleCastErrorDB(err);
+  } else if (err.code === 11000) {
+    error = handleDuplicateFieldsDB(err);
+  } else if (err.name === 'ValidationError') {
+    error = handleValidationErrorDB(err);
+  }
+
   if (process.env.NODE_ENV === 'development') {
-    sendErrorDev(err, res);
+    sendErrorDev(error, res);
   } else {
-    let error = { ...err };
-    error.message = err.message;
-
-    // Handle specific MongoDB errors
-    if (err.name === 'CastError') error = handleCastErrorDB(err);
-    if (err.code === 11000) error = handleDuplicateFieldsDB(err);
-    if (err.name === 'ValidationError') error = handleValidationErrorDB(err);
-
     sendErrorProd(error, res);
   }
 };

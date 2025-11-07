@@ -17,7 +17,7 @@ const CategorySchema = new mongoose.Schema(
     },
     slug: {
       type: String,
-      required: true,
+      required: false, // Not required in schema - will be auto-generated in pre('validate') hook
       unique: true,
       lowercase: true,
     },
@@ -29,16 +29,31 @@ const CategorySchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Create slug from name before saving
-CategorySchema.pre('save', function (next) {
-  if (!this.isModified('name')) {
-    return next();
+// Create slug from name before validation
+// Using pre('validate') ensures slug is set before validation runs
+CategorySchema.pre('validate', function (next) {
+  // Always generate slug if it's not already set or if name is modified
+  if (!this.slug || this.isModified('name')) {
+    if (!this.name) {
+      return next(new Error('Category name is required to generate slug'));
+    }
+    
+    // Generate slug from name
+    let slug = this.name
+      .toLowerCase()
+      .trim()
+      .replace(/[^\w\s-]+/g, '') // Remove special characters except spaces and hyphens
+      .replace(/\s+/g, '-') // Replace spaces with hyphens
+      .replace(/-+/g, '-') // Replace multiple hyphens with single hyphen
+      .replace(/^-+|-+$/g, ''); // Remove leading/trailing hyphens
+    
+    // If slug is empty after processing, use a fallback
+    if (!slug || slug.length === 0) {
+      slug = 'category-' + Date.now();
+    }
+    
+    this.slug = slug;
   }
-  
-  this.slug = this.name
-    .toLowerCase()
-    .replace(/[^\w ]+/g, '')
-    .replace(/ +/g, '-');
     
   next();
 });

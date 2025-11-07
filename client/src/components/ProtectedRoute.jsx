@@ -1,18 +1,18 @@
 // ProtectedRoute.jsx - Component to protect routes that require authentication
 
 import { Navigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '@clerk/clerk-react';
 import Loading from './Loading';
 
 const ProtectedRoute = ({ children }) => {
-  const { isAuthenticated, loading } = useAuth();
+  const { isSignedIn, isLoaded } = useAuth();
 
-  if (loading) {
+  if (!isLoaded) {
     return <Loading />;
   }
 
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+  if (!isSignedIn) {
+    return <Navigate to="/sign-in" replace />;
   }
 
   return children;

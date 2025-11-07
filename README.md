@@ -8,7 +8,7 @@ A full-stack blog application built with MongoDB, Express.js, React.js, and Node
 ## 🚀 Live Features
 
 - ✅ Full CRUD operations for blog posts
-- ✅ User authentication and authorization (JWT)
+- ✅ User authentication and authorization (Clerk)
 - ✅ Image uploads for featured images
 - ✅ Comments system
 - ✅ Search and filter functionality
@@ -44,13 +44,13 @@ A full-stack blog application built with MongoDB, Express.js, React.js, and Node
 
 This is a complete MERN stack blog application where users can:
 - Create, read, update, and delete blog posts
-- Register and login to secure their content
+- Sign up and sign in securely using Clerk authentication
 - Upload featured images for their posts
 - Comment on posts
 - Search and filter posts by category
 - Browse posts with pagination
 
-The application follows RESTful API principles, implements secure authentication, and provides a modern, responsive user interface.
+The application follows RESTful API principles, implements secure authentication with Clerk, and provides a modern, responsive user interface.
 
 ---
 
@@ -61,8 +61,7 @@ The application follows RESTful API principles, implements secure authentication
 - **Express.js** - Web framework
 - **MongoDB** - NoSQL database
 - **Mongoose** - MongoDB object modeling
-- **JWT** - Authentication tokens
-- **bcryptjs** - Password hashing
+- **Clerk** - Authentication and user management
 - **Multer** - File upload handling
 - **Joi** - Input validation
 - **dotenv** - Environment variables
@@ -71,6 +70,7 @@ The application follows RESTful API principles, implements secure authentication
 - **React 18** - UI library
 - **Vite** - Build tool and dev server
 - **React Router DOM** - Client-side routing
+- **Clerk React** - Authentication components and hooks
 - **Axios** - HTTP client
 - **Context API** - State management
 - **Custom Hooks** - Reusable logic
@@ -100,10 +100,10 @@ mern-stack-integration-babulele/
 │   │   │   └── useApi.js
 │   │   ├── pages/                   # Page components
 │   │   │   ├── Home.jsx
-│   │   │   ├── Login.jsx
+│   │   │   ├── SignIn.jsx
+│   │   │   ├── SignUp.jsx
 │   │   │   ├── PostDetail.jsx
-│   │   │   ├── PostForm.jsx
-│   │   │   └── Register.jsx
+│   │   │   └── PostForm.jsx
 │   │   ├── services/                # API service layer
 │   │   │   └── api.js
 │   │   ├── utils/                   # Utility functions
@@ -155,7 +155,7 @@ mern-stack-integration-babulele/
 ### Core Features
 - **Blog Posts Management**: Create, read, update, and delete blog posts
 - **Categories**: Organize posts into categories with custom colors
-- **User Authentication**: Secure registration and login with JWT
+- **User Authentication**: Secure authentication with Clerk (email/password, social logins, MFA)
 - **Image Uploads**: Upload featured images for posts (max 5MB)
 - **Comments**: Add comments to posts (requires authentication)
 - **Search**: Search posts by title or content
@@ -183,6 +183,7 @@ Before you begin, ensure you have the following installed:
   - OR **MongoDB Atlas** account - [Sign up](https://www.mongodb.com/cloud/atlas)
 - **npm** or **yarn** (comes with Node.js)
 - **Git** - [Download](https://git-scm.com/)
+- **Clerk Account** - [Sign up](https://clerk.com) (free tier available)
 
 ---
 
@@ -213,6 +214,25 @@ npm install
 
 ## ⚙️ Configuration
 
+### Clerk Setup (Required First)
+
+Before configuring the application, you need to set up Clerk:
+
+1. **Create a Clerk Account**:
+   - Go to [https://clerk.com](https://clerk.com)
+   - Sign up for a free account
+   - Create a new application
+
+2. **Get Your API Keys**:
+   - In the Clerk dashboard, go to **API Keys**
+   - Copy your **Publishable Key** (starts with `pk_test_`)
+   - Copy your **Secret Key** (starts with `sk_test_`)
+
+3. **Configure Authentication Methods** (Optional):
+   - In Clerk dashboard, go to **User & Authentication**
+   - Enable email/password authentication
+   - Optionally enable social logins (Google, GitHub, etc.)
+
 ### Server Configuration
 
 1. Navigate to the server directory:
@@ -223,7 +243,7 @@ cd server
 2. Create a `.env` file:
 ```bash
 # Copy the example file
-cp config/env.example.txt .env
+cp .env.example .env
 ```
 
 3. Edit `.env` with your configuration:
@@ -238,11 +258,9 @@ MONGODB_URI=mongodb://localhost:27017/mern-blog
 # For MongoDB Atlas (cloud):
 # MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/mern-blog
 
-# JWT Secret (Change this to a random string!)
-JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
-
-# JWT Expiration
-JWT_EXPIRE=7d
+# Clerk Authentication
+# Get your secret key from https://dashboard.clerk.com
+CLERK_SECRET_KEY=sk_test_your-clerk-secret-key-here
 ```
 
 ### Client Configuration
@@ -255,13 +273,17 @@ cd client
 2. Create a `.env` file:
 ```bash
 # Copy the example file
-cp config/env.example.txt .env
+cp .env.example .env
 ```
 
 3. Edit `.env`:
 ```env
 # Backend API URL
 VITE_API_URL=http://localhost:5000/api
+
+# Clerk Authentication
+# Get your publishable key from https://dashboard.clerk.com
+VITE_CLERK_PUBLISHABLE_KEY=pk_test_your-clerk-publishable-key-here
 ```
 
 ---
@@ -333,59 +355,41 @@ http://localhost:5000/api
 
 ### Authentication
 
-Most endpoints require authentication. Include the JWT token in the Authorization header:
+Most endpoints require authentication. The application uses **Clerk** for authentication. Include the Clerk session token in the Authorization header:
 ```
-Authorization: Bearer <your-jwt-token>
+Authorization: Bearer <clerk-session-token>
 ```
+
+**Note**: Session tokens are automatically obtained from Clerk when users sign in. The frontend automatically includes the token in API requests.
 
 ---
 
 ### Auth Endpoints
 
-#### Register User
-```http
-POST /api/auth/register
-Content-Type: application/json
+**Note**: User registration and login are handled by Clerk on the frontend. Users sign up and sign in through Clerk's UI components at `/sign-up` and `/sign-in` routes.
 
-{
-  "name": "John Doe",
-  "email": "john@example.com",
-  "password": "password123"
-}
+#### Get Current User
+```http
+GET /api/auth/me
+Authorization: Bearer <clerk-session-token>
 ```
 
 **Response:**
 ```json
 {
   "success": true,
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "user": {
+  "data": {
     "id": "507f1f77bcf86cd799439011",
+    "clerkId": "user_2abc123...",
     "name": "John Doe",
     "email": "john@example.com",
-    "role": "user"
+    "role": "user",
+    "avatar": "default-avatar.png"
   }
 }
 ```
 
-#### Login User
-```http
-POST /api/auth/login
-Content-Type: application/json
-
-{
-  "email": "john@example.com",
-  "password": "password123"
-}
-```
-
-**Response:** Same as register
-
-#### Get Current User
-```http
-GET /api/auth/me
-Authorization: Bearer <token>
-```
+**Note**: Users are automatically created in MongoDB when they first authenticate with Clerk.
 
 ---
 
@@ -639,8 +643,8 @@ Content-Type: application/json
 | `/posts/:id` | PostDetail | Public | Single post view with comments |
 | `/posts/new` | PostForm | Private | Create new post |
 | `/posts/:id/edit` | PostForm | Private | Edit existing post |
-| `/login` | Login | Public | User login page |
-| `/register` | Register | Public | User registration page |
+| `/sign-in` | SignIn | Public | User sign-in page (Clerk) |
+| `/sign-up` | SignUp | Public | User registration page (Clerk) |
 
 ---
 
@@ -648,11 +652,11 @@ Content-Type: application/json
 
 ### For Users
 
-1. **Register/Login**: Create an account or login to access features
+1. **Sign Up/Sign In**: Create an account or sign in using Clerk's authentication (supports email/password and social logins)
 2. **Browse Posts**: View all blog posts on the home page
 3. **Search/Filter**: Use search bar or category filter to find posts
 4. **Read Posts**: Click on any post to view full content
-5. **Comment**: Login to add comments on posts
+5. **Comment**: Sign in to add comments on posts
 6. **Create Post**: Click "New Post" to write your own blog post
 7. **Edit/Delete**: Edit or delete your own posts (buttons appear on post detail page)
 
@@ -698,10 +702,11 @@ The application follows these patterns:
 ### Manual Testing
 
 1. **Authentication**:
-   - [ ] Register new user
-   - [ ] Login with credentials
-   - [ ] Access protected routes (should redirect if not logged in)
+   - [ ] Sign up new user (via Clerk)
+   - [ ] Sign in with credentials (via Clerk)
+   - [ ] Access protected routes (should redirect to /sign-in if not authenticated)
    - [ ] Logout functionality
+   - [ ] Social login (if configured in Clerk)
 
 2. **Posts**:
    - [ ] Create new post
@@ -734,11 +739,12 @@ Use Postman, Thunder Client, or curl to test endpoints:
 # Test get all posts
 curl http://localhost:5000/api/posts
 
-# Test register
-curl -X POST http://localhost:5000/api/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{"name":"Test User","email":"test@example.com","password":"password123"}'
+# Test get current user (requires Clerk session token)
+curl -X GET http://localhost:5000/api/auth/me \
+  -H "Authorization: Bearer <clerk-session-token>"
 ```
+
+**Note**: To get a Clerk session token, sign in through the frontend application. The token is automatically included in API requests.
 
 ---
 
@@ -784,21 +790,35 @@ Access to XMLHttpRequest blocked by CORS policy
 401 Unauthorized
 ```
 **Solution**: 
-- Check if token is stored in localStorage
-- Verify JWT_SECRET matches between .env files
-- Ensure token is sent in Authorization header
+- Verify `CLERK_SECRET_KEY` is set in server `.env`
+- Verify `VITE_CLERK_PUBLISHABLE_KEY` is set in client `.env`
+- Ensure you're signed in through Clerk
+- Check that the session token is being sent in Authorization header
+- Verify Clerk dashboard settings are correct
+
+**Missing Clerk Keys**
+```
+Missing VITE_CLERK_PUBLISHABLE_KEY
+```
+**Solution**:
+- Create a Clerk account at https://clerk.com
+- Create a new application in Clerk dashboard
+- Copy your Publishable Key and Secret Key
+- Add them to your `.env` files
 
 ---
 
 ## 🔒 Security Features
 
-- **Password Hashing**: bcrypt with salt rounds
-- **JWT Authentication**: Secure token-based auth
+- **Clerk Authentication**: Industry-standard authentication with secure session management
+- **Password Security**: Handled by Clerk (bcrypt, secure storage)
+- **Session Tokens**: Short-lived, automatically refreshed tokens
 - **Input Validation**: Joi validation on backend
 - **Protected Routes**: Middleware guards sensitive endpoints
 - **Authorization**: Users can only modify their own content
 - **File Upload Validation**: Type and size restrictions
 - **Error Handling**: No sensitive data leaked in errors
+- **Multi-Factor Authentication**: Available through Clerk (if enabled)
 
 ---
 
@@ -808,7 +828,9 @@ Access to XMLHttpRequest blocked by CORS policy
 - [Express.js Guide](https://expressjs.com/en/guide/routing.html)
 - [React Documentation](https://react.dev/)
 - [Mongoose Guide](https://mongoosejs.com/docs/guide.html)
-- [JWT.io](https://jwt.io/) - Learn about JWT tokens
+- [Clerk Documentation](https://clerk.com/docs) - Authentication and user management
+- [Clerk React SDK](https://clerk.com/docs/references/react/overview)
+- [Clerk Node.js SDK](https://clerk.com/docs/references/backend/overview)
 - [Vite Documentation](https://vitejs.dev/)
 
 ---
@@ -821,7 +843,7 @@ Access to XMLHttpRequest blocked by CORS policy
 - [x] **Task 2**: Back-End Development - All API endpoints, Mongoose models, Joi validation, error handling
 - [x] **Task 3**: Front-End Development - All React components, React Router, hooks, custom API hook
 - [x] **Task 4**: Integration and Data Flow - API service, state management, form validation, optimistic updates, loading/error states
-- [x] **Task 5**: Advanced Features - Authentication, image uploads, pagination (already implemented), search/filter, comments
+- [x] **Task 5**: Advanced Features - Authentication (Clerk), image uploads, pagination (already implemented), search/filter, comments
 
 ### Expected Outcomes Met ✅
 
@@ -851,6 +873,7 @@ This project was completed as part of the Week 4 MERN Stack Integration assignme
 
 - PLP (Power Learn Project) for the assignment structure
 - MongoDB, Express, React, and Node.js communities for excellent documentation
+- Clerk for providing robust authentication solutions
 - All open-source contributors of the packages used in this project
 
 ---

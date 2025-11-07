@@ -13,6 +13,9 @@ const {
 // Import validation middleware
 const { validate, createCategorySchema } = require('../utils/validation');
 
+// Import auth middleware
+const { protect } = require('../middleware/auth');
+
 /**
  * @route   GET /api/categories
  * @desc    Get all categories
@@ -30,9 +33,9 @@ router.get('/:id', getCategory);
 /**
  * @route   POST /api/categories
  * @desc    Create new category
- * @access  Private (auth/admin will be added in Task 5)
+ * @access  Private (requires authentication)
  */
-router.post('/', validate(createCategorySchema), createCategory);
+router.post('/', protect, validate(createCategorySchema), createCategory);
 
 module.exports = router;
 

@@ -1,46 +1,25 @@
-// AuthContext.jsx - Context for authentication state
+// AuthContext.jsx - Context for authentication state using Clerk
 
-import { createContext, useContext, useState, useEffect } from 'react';
-import { authService } from '../services/api';
+import { createContext, useContext } from 'react';
+import { useUser, useAuth as useClerkAuth } from '@clerk/clerk-react';
 
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  // Check if user is logged in on mount
-  useEffect(() => {
-    const currentUser = authService.getCurrentUser();
-    setUser(currentUser);
-    setLoading(false);
-  }, []);
-
-  const login = async (credentials) => {
-    try {
-      const response = await authService.login(credentials);
-      if (response.token && response.user) {
-        localStorage.setItem('token', response.token);
-        localStorage.setItem('user', JSON.stringify(response.user));
-        setUser(response.user);
-      }
-      return response;
-    } catch (error) {
-      throw error;
-    }
-  };
-
-  const logout = () => {
-    authService.logout();
-    setUser(null);
-  };
+  const { user, isLoaded: userLoaded } = useUser();
+  const { isSignedIn, signOut } = useClerkAuth();
 
   const value = {
-    user,
-    loading,
-    login,
-    logout,
-    isAuthenticated: !!user,
+    user: user ? {
+      id: user.id,
+      name: user.fullName || user.firstName || user.username || user.emailAddresses[0]?.emailAddress || 'User',
+      email: user.emailAddresses[0]?.emailAddress || '',
+      imageUrl: user.imageUrl,
+      clerkId: user.id,
+    } : null,
+    loading: !userLoaded,
+    logout: signOut,
+    isAuthenticated: isSignedIn,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -54,9 +54,16 @@ const Home = () => {
   const fetchCategories = async () => {
     try {
       const response = await categoryService.getAllCategories();
-      setCategories(response.data || []);
+      // Response structure: { success: true, count: X, data: [...] }
+      const categoriesList = response.data || [];
+      setCategories(categoriesList);
+      
+      if (categoriesList.length === 0) {
+        console.warn('No categories found. You may need to create categories first.');
+      }
     } catch (err) {
       console.error('Failed to load categories:', err);
+      setCategories([]);
     }
   };
 

@@ -68,10 +68,21 @@ const createCategory = async (req, res, next) => {
       data: category,
     });
   } catch (error) {
-    // Handle duplicate error
+    // Handle duplicate error (both name and slug can be duplicates)
     if (error.code === 11000) {
-      return next(new ApiError('Category with this name already exists', 400));
+      // Check which field caused the duplicate
+      const duplicateField = error.keyPattern?.name ? 'name' : 'slug';
+      return next(new ApiError(`Category with this ${duplicateField} already exists`, 400));
     }
+    
+    // Handle validation errors
+    if (error.name === 'ValidationError') {
+      const errors = Object.values(error.errors).map((el) => el.message);
+      return next(new ApiError(`Validation failed: ${errors.join(', ')}`, 400));
+    }
+    
+    // Log unexpected errors for debugging
+    console.error('Category creation error:', error);
     next(error);
   }
 };

@@ -830,6 +830,143 @@ body {
   font-style: italic;
 }
 
+/* ===== CATEGORY FORM STYLES ===== */
+.category-empty-state {
+  padding: 1rem;
+  background: #fff3cd;
+  border: 1px solid #ffc107;
+  border-radius: 5px;
+  margin-bottom: 1rem;
+}
+
+.category-empty-message {
+  color: #856404;
+  margin-bottom: 0.75rem;
+  font-weight: 500;
+}
+
+.btn-create-category {
+  background: #667eea;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 500;
+  transition: background 0.3s;
+}
+
+.btn-create-category:hover {
+  background: #5568d3;
+}
+
+.btn-link {
+  background: none;
+  border: none;
+  color: #667eea;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+  font-size: inherit;
+}
+
+.btn-link:hover {
+  color: #5568d3;
+}
+
+.category-form-inline {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 5px;
+  margin-top: 0.5rem;
+}
+
+.category-name-input,
+.category-desc-input {
+  padding: 0.75rem;
+  border: 1px solid #ced4da;
+  border-radius: 5px;
+  font-size: 1rem;
+  width: 100%;
+}
+
+.category-name-input:focus,
+.category-desc-input:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.category-color-input {
+  width: 60px;
+  height: 40px;
+  border: 1px solid #ced4da;
+  border-radius: 5px;
+  cursor: pointer;
+  align-self: flex-start;
+}
+
+.category-form-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+
+.btn-save-category {
+  background: #28a745;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background 0.3s;
+}
+
+.btn-save-category:hover:not(:disabled) {
+  background: #218838;
+}
+
+.btn-save-category:disabled {
+  background: #6c757d;
+  cursor: not-allowed;
+}
+
+.btn-cancel-category {
+  background: #6c757d;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background 0.3s;
+}
+
+.btn-cancel-category:hover {
+  background: #5a6268;
+}
+
+.btn-add-category {
+  color: #667eea;
+  text-decoration: none;
+  font-size: 0.9rem;
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+}
+
+.btn-add-category:hover {
+  color: #5568d3;
+  text-decoration: underline;
+}
+
 /* ===== RESPONSIVE ===== */
 @media (max-width: 768px) {
   .notification-container {

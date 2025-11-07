@@ -95,10 +95,11 @@ const createCategorySchema = Joi.object({
     .optional(),
   
   color: Joi.string()
-    .pattern(/^#[0-9A-F]{6}$/i)
+    .pattern(/^#([0-9A-F]{3}|[0-9A-F]{6})$/i)
     .optional()
+    .allow('')
     .messages({
-      'string.pattern.base': 'Color must be a valid hex color (e.g., #667eea)',
+      'string.pattern.base': 'Color must be a valid hex color (e.g., #667eea or #f0f)',
     }),
 });
 

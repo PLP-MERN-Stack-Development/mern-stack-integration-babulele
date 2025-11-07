@@ -1,14 +1,16 @@
 // Navigation.jsx - Navigation bar component
 
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '@clerk/clerk-react';
+import { useAuth as useCustomAuth } from '../context/AuthContext';
 
 const Navigation = () => {
-  const { user, logout, isAuthenticated } = useAuth();
+  const { isSignedIn, signOut } = useAuth();
+  const { user } = useCustomAuth();
   const navigate = useNavigate();
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await signOut();
     navigate('/');
   };
 
@@ -24,7 +26,7 @@ const Navigation = () => {
             Home
           </Link>
           
-          {isAuthenticated ? (
+          {isSignedIn ? (
             <>
               <Link to="/posts/new" className="nav-link">
                 New Post
@@ -36,10 +38,10 @@ const Navigation = () => {
             </>
           ) : (
             <>
-              <Link to="/login" className="nav-link">
-                Login
+              <Link to="/sign-in" className="nav-link">
+                Sign In
               </Link>
-              <Link to="/register" className="nav-link nav-button">
+              <Link to="/sign-up" className="nav-link nav-button">
                 Sign Up
               </Link>
             </>

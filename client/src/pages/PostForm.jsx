@@ -20,6 +20,9 @@ const PostForm = ({ showNotification }) => {
   const [categories, setCategories] = useState([]);
   const [imagePreview, setImagePreview] = useState(null);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [showCategoryForm, setShowCategoryForm] = useState(false);
+  const [newCategory, setNewCategory] = useState({ name: '', description: '', color: '#667eea' });
+  const [creatingCategory, setCreatingCategory] = useState(false);
   const fileInputRef = useRef(null);
   
   const [formData, setFormData] = useState({
@@ -42,9 +45,98 @@ const PostForm = ({ showNotification }) => {
   const fetchCategories = async () => {
     try {
       const response = await categoryService.getAllCategories();
-      setCategories(response.data || []);
+      // Response structure: { success: true, count: X, data: [...] }
+      const categoriesList = response.data || [];
+      setCategories(categoriesList);
+      
+      if (categoriesList.length === 0) {
+        console.warn('No categories found. You may need to create categories first.');
+      }
     } catch (err) {
       console.error('Failed to load categories:', err);
+      setCategories([]);
+      setError('Failed to load categories. Please refresh the page.');
+    }
+  };
+
+  const handleCreateCategory = async (e) => {
+    e.preventDefault();
+    setCreatingCategory(true);
+    setError(null);
+
+    try {
+      if (!newCategory.name || newCategory.name.trim().length < 2) {
+        setError('Category name must be at least 2 characters');
+        setCreatingCategory(false);
+        return;
+      }
+
+      // Prepare category data - ensure all fields are properly formatted
+      const categoryData = {
+        name: newCategory.name.trim(),
+      };
+      
+      // Include description only if it has content
+      const trimmedDescription = newCategory.description.trim();
+      if (trimmedDescription) {
+        categoryData.description = trimmedDescription;
+      }
+      
+      // Always include color (default is set in state, but ensure it's valid)
+      // HTML color picker returns format like #RRGGBB (7 chars) or #RGB (4 chars)
+      if (newCategory.color) {
+        // Normalize color to 6-digit format if it's 3-digit
+        let color = newCategory.color;
+        if (/^#[0-9A-Fa-f]{3}$/.test(color)) {
+          // Convert #RGB to #RRGGBB
+          color = '#' + color[1] + color[1] + color[2] + color[2] + color[3] + color[3];
+        }
+        categoryData.color = color;
+      } else {
+        categoryData.color = '#667eea'; // Default color
+      }
+      
+      const response = await categoryService.createCategory(categoryData);
+
+      // Add new category to list
+      setCategories([...categories, response.data]);
+      
+      // Select the newly created category
+      setFormData((prev) => ({
+        ...prev,
+        category: response.data._id,
+      }));
+
+      // Reset form and hide it
+      setNewCategory({ name: '', description: '', color: '#667eea' });
+      setShowCategoryForm(false);
+      
+      if (showNotification) {
+        showNotification('Category created successfully!', 'success');
+      }
+    } catch (err) {
+      // Handle validation errors with details
+      let errorMessage = 'Failed to create category';
+      
+      if (err.response?.data) {
+        const errorData = err.response.data;
+        
+        // Check for validation error details
+        if (errorData.details && Array.isArray(errorData.details)) {
+          const validationErrors = errorData.details.map(d => d.message).join(', ');
+          errorMessage = `Validation failed: ${validationErrors}`;
+        } else if (errorData.error) {
+          errorMessage = errorData.error;
+        }
+      }
+      
+      console.error('Category creation error:', err.response?.data || err);
+      setError(errorMessage);
+      if (showNotification) {
+        showNotification(errorMessage, 'error');
+      }
+    } finally {
+      setCreatingCategory(false);
     }
   };
 
@@ -316,23 +408,148 @@ const PostForm = ({ showNotification }) => {
         <div className="form-row">
           <div className="form-group">
             <label htmlFor="category">Category *</label>
-            <select
-              id="category"
-              name="category"
-              value={formData.category}
-              onChange={handleChange}
-              className={validationErrors.category ? 'error' : ''}
-              required
-            >
-              <option value="">Select a category</option>
-              {categories.map((cat) => (
-                <option key={cat._id} value={cat._id}>
-                  {cat.name}
-                </option>
-              ))}
-            </select>
-            {validationErrors.category && (
-              <span className="field-error">{validationErrors.category}</span>
+            {categories.length === 0 ? (
+              <div className="category-empty-state">
+                <p className="category-empty-message">
+                  ⚠️ No categories available. Please create a category first.
+                </p>
+                {!showCategoryForm ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowCategoryForm(true)}
+                    className="btn btn-create-category"
+                  >
+                    + Create Category
+                  </button>
+                ) : (
+                  <div className="category-form-inline">
+                    <input
+                      type="text"
+                      placeholder="Category name (required)"
+                      value={newCategory.name}
+                      onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })}
+                      className="category-name-input"
+                      required
+                      minLength={2}
+                      maxLength={50}
+                    />
+                    <input
+                      type="text"
+                      placeholder="Description (optional)"
+                      value={newCategory.description}
+                      onChange={(e) => setNewCategory({ ...newCategory, description: e.target.value })}
+                      className="category-desc-input"
+                      maxLength={200}
+                    />
+                    <input
+                      type="color"
+                      value={newCategory.color}
+                      onChange={(e) => setNewCategory({ ...newCategory, color: e.target.value })}
+                      className="category-color-input"
+                      title="Category color"
+                    />
+                    <div className="category-form-actions">
+                      <button
+                        type="button"
+                        onClick={handleCreateCategory}
+                        disabled={creatingCategory || !newCategory.name.trim()}
+                        className="btn btn-save-category"
+                      >
+                        {creatingCategory ? 'Creating...' : 'Create'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowCategoryForm(false);
+                          setNewCategory({ name: '', description: '', color: '#667eea' });
+                        }}
+                        className="btn btn-cancel-category"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <>
+                <select
+                  id="category"
+                  name="category"
+                  value={formData.category}
+                  onChange={handleChange}
+                  className={validationErrors.category ? 'error' : ''}
+                  required
+                >
+                  <option value="">Select a category</option>
+                  {categories.map((cat) => (
+                    <option key={cat._id} value={cat._id}>
+                      {cat.name}
+                    </option>
+                  ))}
+                </select>
+                {!showCategoryForm ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowCategoryForm(true)}
+                    className="btn-link btn-add-category"
+                    style={{ marginTop: '5px', fontSize: '0.9em' }}
+                  >
+                    + Add New Category
+                  </button>
+                ) : (
+                  <div className="category-form-inline" style={{ marginTop: '10px' }}>
+                    <input
+                      type="text"
+                      placeholder="Category name"
+                      value={newCategory.name}
+                      onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })}
+                      className="category-name-input"
+                      required
+                      minLength={2}
+                      maxLength={50}
+                    />
+                    <input
+                      type="text"
+                      placeholder="Description (optional)"
+                      value={newCategory.description}
+                      onChange={(e) => setNewCategory({ ...newCategory, description: e.target.value })}
+                      className="category-desc-input"
+                      maxLength={200}
+                    />
+                    <input
+                      type="color"
+                      value={newCategory.color}
+                      onChange={(e) => setNewCategory({ ...newCategory, color: e.target.value })}
+                      className="category-color-input"
+                      title="Category color"
+                    />
+                    <div className="category-form-actions">
+                      <button
+                        type="button"
+                        onClick={handleCreateCategory}
+                        disabled={creatingCategory || !newCategory.name.trim()}
+                        className="btn btn-save-category"
+                      >
+                        {creatingCategory ? 'Creating...' : 'Create'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowCategoryForm(false);
+                          setNewCategory({ name: '', description: '', color: '#667eea' });
+                        }}
+                        className="btn btn-cancel-category"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {validationErrors.category && (
+                  <span className="field-error">{validationErrors.category}</span>
+                )}
+              </>
             )}
           </div>
 
@@ -372,8 +589,9 @@ const PostForm = ({ showNotification }) => {
           </button>
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || categories.length === 0}
             className="btn btn-submit"
+            title={categories.length === 0 ? 'Please create a category first' : ''}
           >
             {loading ? 'Saving...' : isEditing ? 'Update Post' : 'Create Post'}
           </button>

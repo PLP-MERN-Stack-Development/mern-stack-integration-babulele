@@ -5,18 +5,47 @@ import axios from 'axios';
 // Create axios instance with base URL
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  // Don't set default Content-Type - let it be set per request
+  // For JSON requests, we'll set it in the interceptor
+  // For FormData, browser will set it automatically
 });
 
-// Add request interceptor for authentication
+// Add request interceptor for authentication with Clerk
+// Token will be set by components using useAuth hook from Clerk
+let getToken = null;
+
+export const setTokenGetter = (tokenGetter) => {
+  getToken = tokenGetter;
+};
+
 api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+  async (config) => {
+    // Get token from Clerk if available
+    if (getToken) {
+      try {
+        const token = await getToken();
+        if (token) {
+          config.headers.Authorization = `Bearer ${token}`;
+        } else {
+          console.warn('No token available from Clerk - user may not be signed in');
+        }
+      } catch (error) {
+        console.error('Error getting token from Clerk:', error);
+        // If token retrieval fails, the request will likely fail with 401
+        // which is expected behavior for unauthenticated requests
+      }
+    } else {
+      console.warn('Token getter not set up. Make sure TokenSetup component is rendered inside ClerkProvider.');
     }
+    
+    // For FormData requests, don't set Content-Type - let browser set it with boundary
+    if (config.data instanceof FormData) {
+      delete config.headers['Content-Type'];
+    } else if (!config.headers['Content-Type'] && config.data) {
+      // For non-FormData requests, set Content-Type to application/json
+      config.headers['Content-Type'] = 'application/json';
+    }
+    
     return config;
   },
   (error) => {
@@ -30,9 +59,8 @@ api.interceptors.response.use(
   (error) => {
     // Handle authentication errors
     if (error.response && error.response.status === 401) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.location.href = '/login';
+      // Redirect to sign-in handled by Clerk
+      window.location.href = '/sign-in';
     }
     return Promise.reject(error);
   }
@@ -88,9 +116,8 @@ export const postService = {
     const formData = new FormData();
     formData.append('image', file);
     const response = await api.post('/posts/upload', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
+      // Don't set Content-Type header - browser will set it automatically with boundary
+      // The interceptor will handle removing Content-Type for FormData
     });
     return response.data;
   },
@@ -107,7 +134,12 @@ export const categoryService = {
   // Get all categories
   getAllCategories: async () => {
     const response = await api.get('/categories');
-    return response.data;
+    // Backend returns: { success: true, count: X, data: [...] }
+    // Return the data property containing the categories array
+    return {
+      ...response.data,
+      data: response.data.data || [],
+    };
   },
 
   // Create a new category
@@ -117,34 +149,12 @@ export const categoryService = {
   },
 };
 
-// Auth API services
+// Auth API services (using Clerk - registration/login handled by Clerk)
 export const authService = {
-  // Register a new user
-  register: async (userData) => {
-    const response = await api.post('/auth/register', userData);
+  // Get current user from backend
+  getCurrentUser: async () => {
+    const response = await api.get('/auth/me');
     return response.data;
-  },
-
-  // Login user
-  login: async (credentials) => {
-    const response = await api.post('/auth/login', credentials);
-    if (response.data.token) {
-      localStorage.setItem('token', response.data.token);
-      localStorage.setItem('user', JSON.stringify(response.data.user));
-    }
-    return response.data;
-  },
-
-  // Logout user
-  logout: () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-  },
-
-  // Get current user
-  getCurrentUser: () => {
-    const user = localStorage.getItem('user');
-    return user ? JSON.parse(user) : null;
   },
 };
 

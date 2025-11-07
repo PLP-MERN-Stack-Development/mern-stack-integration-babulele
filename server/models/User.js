@@ -5,6 +5,12 @@ const bcrypt = require('bcryptjs');
 
 const UserSchema = new mongoose.Schema(
   {
+    clerkId: {
+      type: String,
+      required: [true, 'Please provide a Clerk ID'],
+      unique: true,
+      index: true,
+    },
     name: {
       type: String,
       required: [true, 'Please provide a name'],
@@ -24,9 +30,7 @@ const UserSchema = new mongoose.Schema(
     },
     password: {
       type: String,
-      required: [true, 'Please provide a password'],
-      minlength: [6, 'Password must be at least 6 characters'],
-      select: false, // Don't return password by default
+      select: false, // Don't return password by default (not required with Clerk)
     },
     role: {
       type: String,
@@ -41,10 +45,10 @@ const UserSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Hash password before saving
+// Hash password before saving (only if password is provided - not required with Clerk)
 UserSchema.pre('save', async function (next) {
-  // Only hash if password is modified
-  if (!this.isModified('password')) {
+  // Only hash if password is modified and provided
+  if (!this.isModified('password') || !this.password) {
     return next();
   }
   
@@ -54,8 +58,11 @@ UserSchema.pre('save', async function (next) {
   next();
 });
 
-// Method to compare password
+// Method to compare password (optional - for backward compatibility)
 UserSchema.methods.matchPassword = async function (enteredPassword) {
+  if (!this.password) {
+    return false;
+  }
   return await bcrypt.compare(enteredPassword, this.password);
 };
 
