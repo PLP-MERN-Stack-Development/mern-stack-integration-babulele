@@ -2,9 +2,28 @@
 
 import axios from 'axios';
 
+// Determine the base URL for API requests
+// In production, use VITE_API_URL if set, otherwise use relative URL with /api prefix
+// In development, use the proxy or VITE_API_URL
+const getBaseURL = () => {
+  // If VITE_API_URL is explicitly set, use it
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
+  
+  // In production (when not localhost), use relative URL
+  // This works when backend and frontend are on the same domain
+  if (import.meta.env.PROD) {
+    return '/api';
+  }
+  
+  // In development, use localhost with proxy
+  return 'http://localhost:5000/api';
+};
+
 // Create axios instance with base URL
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
+  baseURL: getBaseURL(),
   // Don't set default Content-Type - let it be set per request
   // For JSON requests, we'll set it in the interceptor
   // For FormData, browser will set it automatically

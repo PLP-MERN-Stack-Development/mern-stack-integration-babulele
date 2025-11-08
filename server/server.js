@@ -53,27 +53,73 @@ app.use('/api/posts', postRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/auth', authRoutes);
 
-// Root route
-app.get('/', (req, res) => {
-  res.json({
-    success: true,
-    message: 'MERN Blog API is running',
-    version: '1.0.0',
-    endpoints: {
-      posts: '/api/posts',
-      categories: '/api/categories',
-      auth: '/api/auth',
-    },
+// Serve static files from React app in production
+if (process.env.NODE_ENV === 'production') {
+  // Serve static files from the React app
+  const clientBuildPath = path.join(__dirname, '../client/dist');
+  
+  if (fs.existsSync(clientBuildPath)) {
+    app.use(express.static(clientBuildPath));
+    
+    // Handle React routing - return all requests to React app
+    app.get('*', (req, res) => {
+      // Don't serve index.html for API routes
+      if (req.path.startsWith('/api')) {
+        return res.status(404).json({
+          success: false,
+          error: `API route ${req.originalUrl} not found`,
+        });
+      }
+      
+      res.sendFile(path.join(clientBuildPath, 'index.html'));
+    });
+  } else {
+    // If client build doesn't exist, just serve API info
+    app.get('/', (req, res) => {
+      res.json({
+        success: true,
+        message: 'MERN Blog API is running',
+        version: '1.0.0',
+        endpoints: {
+          posts: '/api/posts',
+          categories: '/api/categories',
+          auth: '/api/auth',
+        },
+        note: 'Frontend build not found. Deploy frontend separately or build it.',
+      });
+    });
+    
+    // Handle 404 - routes not found
+    app.use((req, res, next) => {
+      res.status(404).json({
+        success: false,
+        error: `Route ${req.originalUrl} not found`,
+      });
+    });
+  }
+} else {
+  // Development mode - just serve API info
+  app.get('/', (req, res) => {
+    res.json({
+      success: true,
+      message: 'MERN Blog API is running',
+      version: '1.0.0',
+      endpoints: {
+        posts: '/api/posts',
+        categories: '/api/categories',
+        auth: '/api/auth',
+      },
+    });
   });
-});
-
-// Handle 404 - routes not found
-app.use((req, res, next) => {
-  res.status(404).json({
-    success: false,
-    error: `Route ${req.originalUrl} not found`,
+  
+  // Handle 404 - routes not found
+  app.use((req, res, next) => {
+    res.status(404).json({
+      success: false,
+      error: `Route ${req.originalUrl} not found`,
+    });
   });
-});
+}
 
 // Error handling middleware (must be last)
 app.use(errorHandler);
