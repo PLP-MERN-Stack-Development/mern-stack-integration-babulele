@@ -66,17 +66,52 @@ const PostSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Create slug from title before saving
-PostSchema.pre('save', function (next) {
-  if (!this.isModified('title')) {
-    return next();
+// Create slug from title before validation
+// Using pre('validate') ensures slug is set before validation runs (since slug is required)
+PostSchema.pre('validate', function (next) {
+  // Only generate slug if it's not already explicitly set
+  // This allows the controller to set a custom slug (e.g., for handling duplicates)
+  if (!this.slug) {
+    if (!this.title) {
+      return next(new Error('Title is required to generate slug'));
+    }
+    
+    // Generate slug from title
+    let slug = this.title
+      .toLowerCase()
+      .trim()
+      .replace(/[^\w\s-]+/g, '') // Remove special characters except spaces and hyphens
+      .replace(/\s+/g, '-') // Replace spaces with hyphens
+      .replace(/-+/g, '-') // Replace multiple hyphens with single hyphen
+      .replace(/^-+|-+$/g, ''); // Remove leading/trailing hyphens
+    
+    // If slug is empty after processing, use a fallback
+    if (!slug || slug.length === 0) {
+      slug = 'post-' + Date.now();
+    }
+    
+    this.slug = slug;
+  } else if (this.isModified('title') && !this.isNew) {
+    // Only regenerate slug if title is modified on an existing document
+    // and slug wasn't explicitly set
+    // For new documents with explicit slug, don't regenerate
+    if (this.title) {
+      let slug = this.title
+        .toLowerCase()
+        .trim()
+        .replace(/[^\w\s-]+/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-+|-+$/g, '');
+      
+      if (!slug || slug.length === 0) {
+        slug = 'post-' + Date.now();
+      }
+      
+      this.slug = slug;
+    }
   }
   
-  this.slug = this.title
-    .toLowerCase()
-    .replace(/[^\w ]+/g, '')
-    .replace(/ +/g, '-');
-    
   next();
 });
 

@@ -29,8 +29,26 @@ const createPostSchema = Joi.object({
   
   category: Joi.string()
     .required()
+    .trim()
+    .custom((value, helpers) => {
+      // Value is already trimmed by Joi
+      // Check if empty (should not happen due to .required(), but just in case)
+      if (!value || value === '') {
+        return helpers.error('string.empty');
+      }
+      
+      // Check if it's a valid MongoDB ObjectId (24 hex characters)
+      if (!/^[0-9a-fA-F]{24}$/.test(value)) {
+        return helpers.error('string.pattern.base');
+      }
+      
+      return value;
+    })
     .messages({
-      'string.empty': 'Category is required',
+      'string.empty': 'Category is required. Please select a category.',
+      'string.pattern.base': 'Category must be a valid category ID (24 hex characters). Received: "{{#value}}"',
+      'any.required': 'Category is required. Please select a category.',
+      'any.custom': 'Category must be a valid category ID',
     }),
   
   tags: Joi.array()
@@ -106,7 +124,12 @@ const createCategorySchema = Joi.object({
 // Middleware function to validate requests
 const validate = (schema) => {
   return (req, res, next) => {
-    const { error } = schema.validate(req.body, {
+    // Log incoming request data for debugging (in development)
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Validation - Request body:', JSON.stringify(req.body, null, 2));
+    }
+
+    const { error, value } = schema.validate(req.body, {
       abortEarly: false, // Show all errors, not just the first one
       stripUnknown: true, // Remove unknown fields
     });
@@ -115,7 +138,18 @@ const validate = (schema) => {
       const errors = error.details.map((detail) => ({
         field: detail.path.join('.'),
         message: detail.message,
+        value: detail.context?.value !== undefined ? String(detail.context.value) : undefined,
+        type: detail.type,
       }));
+
+      // Log validation errors for debugging (in development)
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Validation failed:', {
+          errors: errors,
+          requestBody: req.body,
+          errorCount: errors.length,
+        });
+      }
 
       return res.status(400).json({
         success: false,
@@ -124,6 +158,8 @@ const validate = (schema) => {
       });
     }
 
+    // Replace req.body with validated and sanitized value
+    req.body = value;
     next();
   };
 };

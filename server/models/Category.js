@@ -58,8 +58,8 @@ CategorySchema.pre('validate', function (next) {
   next();
 });
 
-// Prevent duplicate slug errors
-CategorySchema.index({ slug: 1 });
+// Index already created via unique: true in schema definition
+// CategorySchema.index({ slug: 1 }); // Removed to avoid duplicate index warning
 
 module.exports = mongoose.model('Category', CategorySchema);
 

@@ -231,20 +231,47 @@ const PostForm = ({ showNotification }) => {
       return;
     }
 
-    try {
-      // Prepare data
-      const postData = {
-        ...formData,
-        tags: formData.tags
-          .split(',')
-          .map((tag) => tag.trim())
-          .filter((tag) => tag.length > 0),
-      };
+    // Validate category is selected before preparing data
+    if (!formData.category || formData.category.trim() === '') {
+      setError('Please select a category before submitting');
+      setValidationErrors({ category: 'Please select a category' });
+      setLoading(false);
+      if (showNotification) {
+        showNotification('Please select a category', 'error');
+      }
+      return;
+    }
 
+    // Prepare data outside try block so it's accessible in catch block
+    const postData = {
+      title: formData.title.trim(),
+      content: formData.content.trim(),
+      excerpt: formData.excerpt?.trim() || '',
+      category: formData.category.trim(), // Already validated to be non-empty
+      tags: (formData.tags || '')
+        .split(',')
+        .map((tag) => tag.trim())
+        .filter((tag) => tag.length > 0),
+      isPublished: formData.isPublished || false,
+      featuredImage: formData.featuredImage || '',
+    };
+
+    // Log the data being sent for debugging
+    console.log('📤 Submitting post data:', {
+      title: postData.title,
+      content: postData.content?.substring(0, 50) + '...',
+      category: postData.category,
+      categoryLength: postData.category?.length,
+      tags: postData.tags,
+      isPublished: postData.isPublished,
+      excerpt: postData.excerpt,
+      featuredImage: postData.featuredImage,
+    });
+
+    try {
       // Author ID is now set by backend from authenticated user
 
       let response;
-      let previousPosts = null;
 
       // Optimistic update for editing
       if (isEditing) {
@@ -286,19 +313,96 @@ const PostForm = ({ showNotification }) => {
         // For simplicity, just show error
       }
 
-      const errorMessage = err.response?.data?.error || 'Failed to save post';
-      const details = err.response?.data?.details;
-      
-      if (details) {
-        setError(details.map((d) => d.message).join(', '));
-        if (showNotification) {
-          showNotification(errorMessage, 'error');
+      // Handle error response
+      const errorResponse = err.response?.data || {};
+      let errorMessage = 'Failed to save post';
+      let errorDetails = [];
+
+      // Check if we have an error response
+      if (err.response && err.response.data) {
+        // Get main error message
+        errorMessage = errorResponse.error || errorResponse.message || errorMessage;
+        
+        // Get validation details if available
+        if (errorResponse.details && Array.isArray(errorResponse.details)) {
+          errorDetails = errorResponse.details.map((d) => {
+            const fieldName = d.field || d.path?.join('.') || 'unknown';
+            const message = d.message || 'Invalid value';
+            const value = d.value !== undefined ? ` (received: "${d.value}")` : '';
+            return `${fieldName}: ${message}${value}`;
+          });
+        } else if (errorResponse.message) {
+          // If there's a message but no details, use it
+          errorDetails = [errorResponse.message];
         }
+      } else if (err.message) {
+        // Network error or other error
+        errorMessage = err.message;
+        errorDetails = [err.message];
+      }
+
+      // Log error for debugging - expanded format for better visibility
+      console.group('❌ Post Creation/Update Error');
+      console.error('Status:', err.response?.status);
+      console.error('Error Response:', errorResponse);
+      if (errorResponse?.details && Array.isArray(errorResponse.details)) {
+        console.error('Validation Errors:', errorResponse.details);
+        errorResponse.details.forEach((detail, index) => {
+          console.error(`  Error ${index + 1}:`, {
+            field: detail.field,
+            message: detail.message,
+            value: detail.value,
+            type: detail.type,
+          });
+        });
+      }
+      console.error('Request Data:', isEditing ? { id, ...postData } : postData);
+      console.error('Form Data:', formData);
+      console.error('Full Error Response:', err.response?.data);
+      console.error('Full Error Object:', err);
+      console.groupEnd();
+
+      // Set error message - prioritize showing validation errors
+      if (errorDetails.length > 0) {
+        // Create a user-friendly error message
+        const errorText = errorDetails.map(d => `• ${d}`).join('\n');
+        setError(errorText);
+        
+        // Also set validation errors for specific fields to highlight them in the form
+        const fieldErrors = {};
+        errorResponse.details?.forEach((d) => {
+          if (d.field) {
+            fieldErrors[d.field] = d.message;
+            // Also log each field error for debugging
+            console.error(`  Field "${d.field}": ${d.message} (value: ${d.value || 'undefined'})`);
+          }
+        });
+        setValidationErrors(fieldErrors);
+        
+        // Scroll to first error field if possible
+        setTimeout(() => {
+          if (Object.keys(fieldErrors).length > 0) {
+            const firstErrorField = Object.keys(fieldErrors)[0];
+            const errorElement = document.querySelector(`[name="${firstErrorField}"]`);
+            if (errorElement) {
+              errorElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              errorElement.focus();
+            }
+          }
+        }, 100);
       } else {
-        setError(errorMessage);
-        if (showNotification) {
-          showNotification(errorMessage, 'error');
-        }
+        // If no detailed errors, show the general error message
+        const displayError = errorMessage || 'An unexpected error occurred. Please check the console for details.';
+        setError(displayError);
+        console.error('No detailed error information available. General error:', errorMessage);
+      }
+
+      // Show notification
+      if (showNotification) {
+        const notificationMessage = errorDetails.length > 0 
+          ? errorDetails.join(', ') 
+          : errorMessage;
+        showNotification(notificationMessage, 'error');
       }
     } finally {
       setLoading(false);

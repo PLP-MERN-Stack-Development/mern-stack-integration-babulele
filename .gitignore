@@ -11,6 +11,16 @@ yarn-error.log*
 .env.development
 *.env
 
+# Client and Server specific .env files
+client/.env
+client/.env.local
+client/.env.production
+client/.env.development
+server/.env
+server/.env.local
+server/.env.production
+server/.env.development
+
 # Logs
 *.log
 logs/
