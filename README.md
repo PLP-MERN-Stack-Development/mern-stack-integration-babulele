@@ -1,9 +1,7 @@
 # 📝 MERN Stack Blog Application
+url: https://mern-stack-integration-babulele-swo6-3ifu9hw9d.vercel.app
 
 A full-stack blog application built with MongoDB, Express.js, React.js, and Node.js. This project demonstrates seamless integration between front-end and back-end components, including database operations, API communication, state management, authentication, and advanced features.
-
-![MERN Stack](https://img.shields.io/badge/MERN-MongoDB%20Express%20React%20Node-green)
-![License](https://img.shields.io/badge/license-ISC-blue)
 
 ## 🚀 Live Features
 
